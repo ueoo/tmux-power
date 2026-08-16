@@ -131,7 +131,11 @@ fi
 
 # Basic status bar colors (style string, not legacy status-fg/bg: to those,
 # 'default' means reset-to-tmux-default = black on green, while in a style
-# string bg=default is the terminal background)
+# string bg=default is the terminal background). Unset the legacy options
+# first: a server that once ran an older tmux-power keeps them, and on
+# tmux >= 3.6 a stale status-bg overrides bg=default at render time.
+tmux set-option -gqu status-bg
+tmux set-option -gqu status-fg
 tmux_set status-style "fg=$FG,bg=$BG"
 tmux_set status-attr none
 
