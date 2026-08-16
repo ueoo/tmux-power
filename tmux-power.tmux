@@ -102,12 +102,17 @@ tmux_set status-interval 1
 # the bottom row. status-format[0] is restored to its default before copying
 # so re-sourcing the config stays idempotent.
 gap=$(tmux_get '@tmux_power_gap' 'off')
-if [[ $gap == 'on' || $gap == 'true' ]]; then
+if [[ $gap == 'on' || $gap == 'true' || $gap == 'line' ]]; then
     # unset the whole array: per-index unset does NOT restore the compiled
     # default, it just leaves a hole that reads back as empty
     tmux set-option -gqu status-format
     tmux set-option -gq 'status-format[1]' "$(tmux show-options -gv 'status-format[0]')"
-    tmux set-option -gq 'status-format[0]' ''
+    if [[ $gap == 'line' ]]; then
+        # dim hairline instead of a blank row (clipped to window width)
+        tmux set-option -gq 'status-format[0]' "#[fg=$G07,bg=default]$(printf '─%.0s' {1..600})"
+    else
+        tmux set-option -gq 'status-format[0]' ''
+    fi
     tmux set-option -gq status 2
 else
     tmux set-option -gqu status-format
