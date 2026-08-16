@@ -88,6 +88,12 @@ FG="$G10"
 BG=$(tmux_get '@tmux_power_bg' "$G04")
 [[ $BG == 'transparent' ]] && BG='default'
 
+# 'powerline' (blocks + arrows) or 'text' (bare coloured text, no blocks;
+# implies a transparent fill)
+style=$(tmux_get '@tmux_power_style' 'powerline')
+[[ $style == 'plain' ]] && style='text'
+[[ $style == 'text' ]] && BG='default'
+
 # Status options
 tmux_set status-interval 1
 tmux_set status on
@@ -111,11 +117,18 @@ tmux_set status-left-bg "$BG"
 tmux_set status-left-fg "$G12"
 tmux_set status-left-length 150
 user=$(whoami)
-LS="#[fg=$G04,bg=$TC,bold] $user_icon $user@#H #[fg=$TC,bg=$G06,nobold]#[fg=$TC,bg=$G06] $session_icon #S "
-if "$show_upload_speed"; then
-    LS="$LS#[fg=$G06,bg=$G05]#[fg=$TC,bg=$G05] $upload_speed_icon #{upload_speed} #[fg=$G05,bg=$BG]"
+if [[ $style == 'text' ]]; then
+    LS="#[fg=$TC,bold] $user_icon $user@#H #[nobold] $session_icon #S "
+    if "$show_upload_speed"; then
+        LS="$LS#[fg=$TC] $upload_speed_icon #{upload_speed} "
+    fi
 else
-    LS="$LS#[fg=$G06,bg=$BG]"
+    LS="#[fg=$G04,bg=$TC,bold] $user_icon $user@#H #[fg=$TC,bg=$G06,nobold]#[fg=$TC,bg=$G06] $session_icon #S "
+    if "$show_upload_speed"; then
+        LS="$LS#[fg=$G06,bg=$G05]#[fg=$TC,bg=$G05] $upload_speed_icon #{upload_speed} #[fg=$G05,bg=$BG]"
+    else
+        LS="$LS#[fg=$G06,bg=$BG]"
+    fi
 fi
 if [[ $prefix_highlight_pos == 'L' || $prefix_highlight_pos == 'LR' ]]; then
     LS="$LS#{prefix_highlight}"
@@ -126,9 +139,16 @@ tmux_set status-left "$LS"
 tmux_set status-right-bg "$BG"
 tmux_set status-right-fg "$G12"
 tmux_set status-right-length 150
-RS="#[fg=$G06]#[fg=$TC,bg=$G06] $time_icon $time_format #[fg=$TC,bg=$G06]#[fg=$G04,bg=$TC] $date_icon $date_format "
-if "$show_download_speed"; then
-    RS="#[fg=$G05,bg=$BG]#[fg=$TC,bg=$G05] $download_speed_icon #{download_speed} $RS"
+if [[ $style == 'text' ]]; then
+    RS="#[fg=$TC] $time_icon $time_format  $date_icon $date_format "
+    if "$show_download_speed"; then
+        RS="#[fg=$TC] $download_speed_icon #{download_speed} $RS"
+    fi
+else
+    RS="#[fg=$G06]#[fg=$TC,bg=$G06] $time_icon $time_format #[fg=$TC,bg=$G06]#[fg=$G04,bg=$TC] $date_icon $date_format "
+    if "$show_download_speed"; then
+        RS="#[fg=$G05,bg=$BG]#[fg=$TC,bg=$G05] $download_speed_icon #{download_speed} $RS"
+    fi
 fi
 if "$show_web_reachable"; then
     RS=" #{web_reachable_status} $RS"
@@ -139,17 +159,19 @@ fi
 tmux_set status-right "$RS"
 
 # Window status format
-if [[ $BG == 'default' ]]; then
+if [[ $style == 'text' ]]; then
+    # bare coloured text, no blocks
+    tmux_set window-status-format         "#[fg=$TC] #I:#W#F "
+    tmux_set window-status-current-format "#[fg=$TC,bold] #I:#W#F "
+elif [[ $BG == 'default' ]]; then
     # transparent fill: segments get pointed caps on both sides
-    win_cap="#[fg=$G06,bg=default]$larrow"
-    cur_cap="#[fg=$TC,bg=default]$larrow"
+    tmux_set window-status-format         "#[fg=$G06,bg=default]$larrow#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=default]$rarrow"
+    tmux_set window-status-current-format "#[fg=$TC,bg=default]$larrow#[fg=$G04,bg=$TC,bold] #I:#W#F #[fg=$TC,bg=default,nobold]$rarrow"
 else
     # solid fill: classic notched powerline transitions
-    win_cap="#[fg=$BG,bg=$G06]$rarrow"
-    cur_cap="#[fg=$BG,bg=$TC]$rarrow"
+    tmux_set window-status-format         "#[fg=$BG,bg=$G06]$rarrow#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=$BG]$rarrow"
+    tmux_set window-status-current-format "#[fg=$BG,bg=$TC]$rarrow#[fg=$G04,bg=$TC,bold] #I:#W#F #[fg=$TC,bg=$BG,nobold]$rarrow"
 fi
-tmux_set window-status-format         "$win_cap#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=$BG]$rarrow"
-tmux_set window-status-current-format "$cur_cap#[fg=$G04,bg=$TC,bold] #I:#W#F #[fg=$TC,bg=$BG,nobold]$rarrow"
 
 # Window status style
 tmux_set window-status-style          "fg=$TC,bg=$BG,none"
