@@ -82,7 +82,11 @@ G11=#6c6c6c #242
 G12=#767676 #243
 
 FG="$G10"
-BG="$G04"
+# Status bar fill: a colour, or 'default'/'transparent' to show the terminal
+# background through (segment caps switch to point outward so no fill colour
+# is ever needed as an arrow foreground)
+BG=$(tmux_get '@tmux_power_bg' "$G04")
+[[ $BG == 'transparent' ]] && BG='default'
 
 # Status options
 tmux_set status-interval 1
@@ -94,16 +98,16 @@ tmux_set status-bg "$BG"
 tmux_set status-attr none
 
 # tmux-prefix-highlight
-tmux_set @prefix_highlight_fg "$BG"
+tmux_set @prefix_highlight_fg "$G04"
 tmux_set @prefix_highlight_bg "$FG"
 tmux_set @prefix_highlight_show_copy_mode 'on'
 tmux_set @prefix_highlight_copy_mode_attr "fg=$TC,bg=$BG,bold"
-tmux_set @prefix_highlight_output_prefix "#[fg=$TC]#[bg=$BG]#[bg=$TC]#[fg=$BG]"
+tmux_set @prefix_highlight_output_prefix "#[fg=$TC]#[bg=$BG]#[bg=$TC]#[fg=$G04]"
 tmux_set @prefix_highlight_output_suffix "#[fg=$TC]#[bg=$BG]"
 
 #     
 # Left side of status bar
-tmux_set status-left-bg "$G04"
+tmux_set status-left-bg "$BG"
 tmux_set status-left-fg "$G12"
 tmux_set status-left-length 150
 user=$(whoami)
@@ -135,8 +139,17 @@ fi
 tmux_set status-right "$RS"
 
 # Window status format
-tmux_set window-status-format         "#[fg=$BG,bg=$G06]#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=$BG]"
-tmux_set window-status-current-format "#[fg=$BG,bg=$TC]#[fg=$BG,bg=$TC,bold] #I:#W#F #[fg=$TC,bg=$BG,nobold]"
+if [[ $BG == 'default' ]]; then
+    # transparent fill: segments get pointed caps on both sides
+    win_cap="#[fg=$G06,bg=default]$larrow"
+    cur_cap="#[fg=$TC,bg=default]$larrow"
+else
+    # solid fill: classic notched powerline transitions
+    win_cap="#[fg=$BG,bg=$G06]$rarrow"
+    cur_cap="#[fg=$BG,bg=$TC]$rarrow"
+fi
+tmux_set window-status-format         "$win_cap#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=$BG]$rarrow"
+tmux_set window-status-current-format "$cur_cap#[fg=$G04,bg=$TC,bold] #I:#W#F #[fg=$TC,bg=$BG,nobold]$rarrow"
 
 # Window status style
 tmux_set window-status-style          "fg=$TC,bg=$BG,none"
