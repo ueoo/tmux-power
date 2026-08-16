@@ -98,9 +98,10 @@ style=$(tmux_get '@tmux_power_style' 'powerline')
 tmux_set status-interval 1
 tmux_set status on
 
-# Basic status bar colors
-tmux_set status-fg "$FG"
-tmux_set status-bg "$BG"
+# Basic status bar colors (style string, not legacy status-fg/bg: to those,
+# 'default' means reset-to-tmux-default = black on green, while in a style
+# string bg=default is the terminal background)
+tmux_set status-style "fg=$FG,bg=$BG"
 tmux_set status-attr none
 
 # tmux-prefix-highlight
@@ -113,8 +114,7 @@ tmux_set @prefix_highlight_output_suffix "#[fg=$TC]#[bg=$BG]"
 
 #     
 # Left side of status bar
-tmux_set status-left-bg "$BG"
-tmux_set status-left-fg "$G12"
+tmux_set status-left-style "fg=$G12,bg=$BG"
 tmux_set status-left-length 150
 user=$(whoami)
 if [[ $style == 'text' ]]; then
@@ -136,8 +136,7 @@ fi
 tmux_set status-left "$LS"
 
 # Right side of status bar
-tmux_set status-right-bg "$BG"
-tmux_set status-right-fg "$G12"
+tmux_set status-right-style "fg=$G12,bg=$BG"
 tmux_set status-right-length 150
 if [[ $style == 'text' ]]; then
     RS="#[fg=$TC] $time_icon $time_format  $date_icon $date_format "
