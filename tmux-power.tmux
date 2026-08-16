@@ -96,7 +96,22 @@ style=$(tmux_get '@tmux_power_style' 'powerline')
 
 # Status options
 tmux_set status-interval 1
-tmux_set status on
+
+# Optional empty spacer row between the panes and the status bar:
+# the row adjacent to the panes gets an empty format, the real bar moves to
+# the bottom row. status-format[0] is restored to its default before copying
+# so re-sourcing the config stays idempotent.
+gap=$(tmux_get '@tmux_power_gap' 'off')
+if [[ $gap == 'on' || $gap == 'true' ]]; then
+    tmux set-option -gqu 'status-format[0]'
+    tmux set-option -gq 'status-format[1]' "$(tmux show-options -gv 'status-format[0]')"
+    tmux set-option -gq 'status-format[0]' ''
+    tmux set-option -gq status 2
+else
+    tmux set-option -gqu 'status-format[0]'
+    tmux set-option -gqu 'status-format[1]'
+    tmux_set status on
+fi
 
 # Basic status bar colors (style string, not legacy status-fg/bg: to those,
 # 'default' means reset-to-tmux-default = black on green, while in a style
