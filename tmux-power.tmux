@@ -103,13 +103,14 @@ tmux_set status-interval 1
 # so re-sourcing the config stays idempotent.
 gap=$(tmux_get '@tmux_power_gap' 'off')
 if [[ $gap == 'on' || $gap == 'true' ]]; then
-    tmux set-option -gqu 'status-format[0]'
+    # unset the whole array: per-index unset does NOT restore the compiled
+    # default, it just leaves a hole that reads back as empty
+    tmux set-option -gqu status-format
     tmux set-option -gq 'status-format[1]' "$(tmux show-options -gv 'status-format[0]')"
     tmux set-option -gq 'status-format[0]' ''
     tmux set-option -gq status 2
 else
-    tmux set-option -gqu 'status-format[0]'
-    tmux set-option -gqu 'status-format[1]'
+    tmux set-option -gqu status-format
     tmux_set status on
 fi
 
