@@ -94,6 +94,14 @@ style=$(tmux_get '@tmux_power_style' 'powerline')
 [[ $style == 'plain' ]] && style='text'
 [[ $style == 'text' ]] && BG='default'
 
+# text-style palette, one hue per element (host keeps the theme colour $TC);
+# solarized-leaning accents chosen to stay readable on light and dark backdrops
+c_session=$(tmux_get '@tmux_power_text_session_color' '#b58900')
+c_win=$(tmux_get '@tmux_power_text_window_color' '#657b83')
+c_cur=$(tmux_get '@tmux_power_text_current_color' '#d33682')
+c_time=$(tmux_get '@tmux_power_text_time_color' '#268bd2')
+c_date=$(tmux_get '@tmux_power_text_date_color' '#6c71c4')
+
 # Status options
 tmux_set status-interval 1
 
@@ -109,7 +117,9 @@ if [[ $gap == 'on' || $gap == 'true' || $gap == 'line' ]]; then
     tmux set-option -gq 'status-format[1]' "$(tmux show-options -gv 'status-format[0]')"
     if [[ $gap == 'line' ]]; then
         # dim hairline instead of a blank row (clipped to window width)
-        tmux set-option -gq 'status-format[0]' "#[fg=$G07,bg=default]$(printf '─%.0s' {1..600})"
+        if [[ $style == 'text' ]]; then default_line='#586e75'; else default_line="$G07"; fi
+        line_color=$(tmux_get '@tmux_power_gap_line_color' "$default_line")
+        tmux set-option -gq 'status-format[0]' "#[fg=$line_color,bg=default]$(printf '─%.0s' {1..600})"
     else
         tmux set-option -gq 'status-format[0]' ''
     fi
@@ -139,9 +149,9 @@ tmux_set status-left-style "fg=$G12,bg=$BG"
 tmux_set status-left-length 150
 user=$(whoami)
 if [[ $style == 'text' ]]; then
-    LS="#[fg=$TC,bold] $user_icon $user@#H #[nobold] $session_icon #S "
+    LS="#[fg=$TC,bold] $user_icon $user@#H #[fg=$c_session,nobold] $session_icon #S "
     if "$show_upload_speed"; then
-        LS="$LS#[fg=$TC] $upload_speed_icon #{upload_speed} "
+        LS="$LS#[fg=$c_time] $upload_speed_icon #{upload_speed} "
     fi
 else
     LS="#[fg=$G04,bg=$TC,bold] $user_icon $user@#H #[fg=$TC,bg=$G06,nobold]#[fg=$TC,bg=$G06] $session_icon #S "
@@ -160,9 +170,9 @@ tmux_set status-left "$LS"
 tmux_set status-right-style "fg=$G12,bg=$BG"
 tmux_set status-right-length 150
 if [[ $style == 'text' ]]; then
-    RS="#[fg=$TC] $time_icon $time_format  $date_icon $date_format "
+    RS="#[fg=$c_time] $time_icon $time_format #[fg=$c_date] $date_icon $date_format "
     if "$show_download_speed"; then
-        RS="#[fg=$TC] $download_speed_icon #{download_speed} $RS"
+        RS="#[fg=$c_time] $download_speed_icon #{download_speed} $RS"
     fi
 else
     RS="#[fg=$G06]#[fg=$TC,bg=$G06] $time_icon $time_format #[fg=$TC,bg=$G06]#[fg=$G04,bg=$TC] $date_icon $date_format "
@@ -181,8 +191,8 @@ tmux_set status-right "$RS"
 # Window status format
 if [[ $style == 'text' ]]; then
     # bare coloured text, no blocks
-    tmux_set window-status-format         "#[fg=$TC] #I:#W#F "
-    tmux_set window-status-current-format "#[fg=$TC,bold] #I:#W#F "
+    tmux_set window-status-format         "#[fg=$c_win] #I:#W#F "
+    tmux_set window-status-current-format "#[fg=$c_cur,bold] #I:#W#F "
 elif [[ $BG == 'default' ]]; then
     # transparent fill: segments get pointed caps on both sides
     tmux_set window-status-format         "#[fg=$G06,bg=default]$larrow#[fg=$TC,bg=$G06] #I:#W#F #[fg=$G06,bg=default]$rarrow"
