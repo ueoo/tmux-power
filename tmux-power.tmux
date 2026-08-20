@@ -124,8 +124,12 @@ if [[ $gap == 'on' || $gap == 'true' || $gap == 'line' ]]; then
         tmux set-option -gq 'status-format[0]' ''
     fi
     tmux set-option -gq status 2
+    # keep messages and the : prompt off the spacer row (they default to
+    # status row 0), so the gap/hairline stays visible while they show
+    tmux set-option -gq message-line 1
 else
     tmux set-option -gqu status-format
+    tmux set-option -gqu message-line
     tmux_set status on
 fi
 
