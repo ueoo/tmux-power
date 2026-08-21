@@ -555,6 +555,123 @@ run_test() {
     cleanup
 }
 
+
+# --- fork features (ueoo/tmux-power) ---
+
+test_fork_transparent_bg_uses_style_strings_and_outward_caps() {
+    start_tmux
+    set_power_option bg 'default'
+    load_plugin
+
+    local status_style window_format current_format
+    status_style="$(run_tmux show -gv status-style)"
+    window_format="$(run_tmux show -gv window-status-format)"
+    current_format="$(run_tmux show -gv window-status-current-format)"
+
+    assert_contains 'bg=default' "$status_style" \
+        "status-style should carry a transparent fill" || return 1
+    assert_contains 'bg=default]' "$window_format" \
+        "window caps should sit on the transparent fill" || return 1
+    assert_not_contains 'fg=#262626,bg=' "$window_format" \
+        "the fill colour must not be used as an arrow foreground" || return 1
+    assert_contains 'bg=default]' "$current_format" \
+        "current window caps should sit on the transparent fill" || return 1
+}
+
+test_fork_text_style_has_no_blocks_and_uses_palette() {
+    start_tmux
+    set_power_option style 'text'
+    set_power_option theme 'moon'
+    load_plugin
+
+    local left right window_format current_format status_style
+    left="$(run_tmux show -gv status-left)"
+    right="$(run_tmux show -gv status-right)"
+    window_format="$(run_tmux show -gv window-status-format)"
+    current_format="$(run_tmux show -gv window-status-current-format)"
+    status_style="$(run_tmux show -gv status-style)"
+
+    assert_contains 'bg=default' "$status_style" \
+        "text style implies a transparent fill" || return 1
+    assert_not_contains $'\uE0B0' "$left" \
+        "text style must not emit arrow glyphs" || return 1
+    assert_not_contains $'\uE0B0' "$right" \
+        "text style must not emit arrow glyphs" || return 1
+    assert_contains 'fg=#00abab,bg=default,bold] ' "$left" \
+        "host section keeps the theme colour" || return 1
+    assert_contains 'fg=#b58900,bg=default] ' "$left" \
+        "session section uses the palette colour" || return 1
+    assert_contains 'fg=#268bd2,bg=default] ' "$right" \
+        "time section uses the palette colour" || return 1
+    assert_contains 'fg=#6c71c4,bg=default] ' "$right" \
+        "date section uses the palette colour" || return 1
+    assert_eq '#[fg=#657b83,bg=default] #I:#W#F ' "$window_format" \
+        "inactive window is bare palette text" || return 1
+    assert_eq '#[fg=#d33682,bg=default,bold] #I:#W#F ' "$current_format" \
+        "current window is bare bold palette text" || return 1
+}
+
+test_fork_text_palette_is_overridable() {
+    start_tmux
+    set_power_option style 'text'
+    set_power_option text_left_b_color '#ff0000'
+    set_power_option text_current_color '#00ff00'
+    load_plugin
+
+    assert_contains 'fg=#ff0000,bg=default] ' "$(run_tmux show -gv status-left)" \
+        "left_b colour override" || return 1
+    assert_contains 'fg=#00ff00,bg=default' "$(run_tmux show -gv window-status-current-format)" \
+        "current window colour override" || return 1
+}
+
+test_fork_legacy_status_bg_is_cleared() {
+    start_tmux
+    run_tmux set -g status-bg '#123456'
+    set_power_option bg 'default'
+    load_plugin
+
+    local status_style
+    status_style="$(run_tmux show -gv status-style)"
+    assert_contains 'bg=default' "$status_style" \
+        "a stale legacy status-bg must not survive the load" || return 1
+}
+
+test_fork_gap_line_keeps_bar_on_row_one() {
+    start_tmux
+    set_power_option gap 'line'
+    set_power_option gap_line_color '#008db1'
+    load_plugin
+
+    local status row0 row1
+    status="$(run_tmux show -gv status)"
+    row0="$(run_tmux show -gv 'status-format[0]')"
+    row1="$(run_tmux show -gv 'status-format[1]')"
+
+    assert_eq '2' "$status" "gap enables a two-row status line" || return 1
+    assert_contains '#[fg=#008db1,bg=default]───' "$row0" \
+        "row 0 is the hairline in the requested colour" || return 1
+    assert_contains 'window-status-format' "$row1" \
+        "row 1 holds the compiled default bar format" || return 1
+
+    # re-sourcing must not copy an empty row 0 into row 1
+    load_plugin
+    row1="$(run_tmux show -gv 'status-format[1]')"
+    assert_contains 'window-status-format' "$row1" \
+        "reload keeps the bar format intact" || return 1
+}
+
+test_fork_gap_off_restores_single_row() {
+    start_tmux
+    set_power_option gap 'line'
+    load_plugin
+    set_power_option gap 'off'
+    load_plugin
+
+    assert_eq 'on' "$(run_tmux show -gv status)" \
+        "turning the gap off returns to a single status row" || return 1
+    # (status-format[1] may read back as tmux's own compiled default on 3.7+)
+}
+
 main() {
     trap cleanup EXIT
 
@@ -572,6 +689,12 @@ main() {
     run_test test_window_styles_can_be_configured
     run_test test_prefix_highlight_style_can_be_configured
     run_test test_use_bold_option_is_ignored
+    run_test test_fork_transparent_bg_uses_style_strings_and_outward_caps
+    run_test test_fork_text_style_has_no_blocks_and_uses_palette
+    run_test test_fork_text_palette_is_overridable
+    run_test test_fork_legacy_status_bg_is_cleared
+    run_test test_fork_gap_line_keeps_bar_on_row_one
+    run_test test_fork_gap_off_restores_single_row
 
     if ((TESTS_FAILED > 0)); then
         echo "$TESTS_FAILED of $TESTS_RUN tests failed" >&2
