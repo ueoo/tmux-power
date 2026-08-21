@@ -279,8 +279,18 @@ configure_status_rows() {
         if [[ -z $color ]]; then
             [[ $style_mode == 'text' ]] && color='#586e75' || color="$G3"
         fi
-        # a long run of box-drawing characters, clipped to the window width
-        tmux_set 'status-format[0]' "#[fg=$color,bg=default]$(printf '─%.0s' {1..600})"
+        # The hairline is an underline on a row of spaces (clipped to the
+        # window width), not a run of box-drawing glyphs: tmux pads the
+        # message row with message-style spaces before drawing a prompt, so
+        # with the same underline on message-style the line stays across the
+        # row while a prompt or message shows on it. 'us=' colours the
+        # underline on terminals that advertise it (terminal-features
+        # usstyle); others fall back to the foreground colour, which is the
+        # same colour here.
+        local rule="fg=$color,bg=default,underscore,us=$color"
+        tmux_set 'status-format[0]' "#[$rule]$(printf ' %.0s' {1..600})"
+        tmux_set message-style "fg=$TC,bg=default,underscore,us=$color"
+        tmux_set message-command-style "fg=$TC,bg=default,underscore,us=$color"
     else
         tmux_set 'status-format[0]' ''
     fi

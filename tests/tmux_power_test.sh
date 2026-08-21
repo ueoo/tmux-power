@@ -648,8 +648,10 @@ test_fork_gap_line_keeps_bar_on_row_one() {
     row1="$(run_tmux show -gv 'status-format[1]')"
 
     assert_eq '2' "$status" "gap enables a two-row status line" || return 1
-    assert_contains '#[fg=#008db1,bg=default]───' "$row0" \
-        "row 0 is the hairline in the requested colour" || return 1
+    assert_contains '#[fg=#008db1,bg=default,underscore,us=#008db1]   ' "$row0" \
+        "row 0 is an underlined rule in the requested colour" || return 1
+    assert_contains 'underscore,us=#008db1' "$(run_tmux show -gv message-style)" \
+        "messages carry the same underline so the rule never breaks" || return 1
     assert_contains 'window-status-format' "$row1" \
         "row 1 holds the compiled default bar format" || return 1
 
