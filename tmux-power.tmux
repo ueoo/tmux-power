@@ -43,7 +43,9 @@ set_defaults() {
     bg=''                 # fill: '' = g0, 'default'/'transparent' = terminal background
     gap='off'             # spacer row above the bar: 'off' | 'on' (blank) | 'line' (hairline)
     gap_line_color=''     # '' = auto (gray-teal in text style, g3 otherwise)
-    message_row='off'     # 'on' = a blank row above the spacer for prompts/messages (3 rows)
+    command_line='off'    # 'on' = Vim-style bottom row: idle info, mode flags, prompts and messages
+    command_line_left=''  # idle info; '' = basename of the pane path, plus the pane title when an app set one
+    command_line_right='' # '' = PREFIX / COPY / ZOOM / SYNC flags
     # text-style palette: one foreground per section (left_a keeps the theme colour)
     text_left_a_color=''
     text_left_b_color='#b58900'
@@ -256,49 +258,62 @@ read_default_status_format() {
     rm -f "$sock"
 }
 
-configure_gap() {
-    case $gap in
-        on | true | line) ;;
-        *)
-            tmux_unset status-format
-            tmux_unset message-line
-            return
-            ;;
-    esac
+configure_status_rows() {
+    local want_gap=false want_cmd=false
+    case $gap in on | true | line) want_gap=true ;; esac
+    case $command_line in on | true) want_cmd=true ;; esac
 
-    # The bar keeps tmux's own compiled status-format, moved to row 1, so the
-    # window list renders exactly as on a single-row status line on every
-    # tmux version. The live array is never touched here: unsetting it to
-    # read the default would redraw the plain bar for a moment on every
-    # reload. Re-sourcing only rewrites values that are already in place.
-    local default_format
+    if ! $want_gap && ! $want_cmd; then
+        tmux_unset status-format
+        tmux_unset message-line
+        return
+    fi
+
+    # The bar keeps tmux's own compiled status-format so the window list
+    # renders exactly as on a single-row status line on every tmux version.
+    # The live array is never unset here: that would redraw the plain bar for
+    # a moment on every reload. Re-sourcing only rewrites values in place.
+    local default_format row=0 i
     default_format="$(read_default_status_format)"
     tmux_set @tmux_power_default_status_format "$default_format"
 
-    # Rows, top to bottom: [message row] spacer bar. Messages and the command
-    # prompt use row 0 (tmux's default), so they show in the spacer, or in
-    # the dedicated blank row when message_row is on, and never hide the bar.
-    local rows=2 spacer_row=0
-    if [[ $message_row == 'on' || $message_row == 'true' ]]; then
-        rows=3
-        spacer_row=1
-        tmux_set 'status-format[0]' ''
+    # Rows, top to bottom: [spacer] bar [command line]
+    if $want_gap; then
+        if [[ $gap == 'line' ]]; then
+            local color="$gap_line_color"
+            if [[ -z $color ]]; then
+                [[ $style_mode == 'text' ]] && color='#586e75' || color="$G3"
+            fi
+            # a long run of box-drawing characters, clipped to the window width
+            tmux_set "status-format[$row]" "#[fg=$color,bg=default]$(printf '─%.0s' {1..600})"
+        else
+            tmux_set "status-format[$row]" ''
+        fi
+        row=$((row + 1))
     fi
 
-    if [[ $gap == 'line' ]]; then
-        local color="$gap_line_color"
-        if [[ -z $color ]]; then
-            [[ $style_mode == 'text' ]] && color='#586e75' || color="$G3"
-        fi
-        # a long run of box-drawing characters, clipped to the window width
-        tmux_set "status-format[$spacer_row]" "#[fg=$color,bg=default]$(printf '─%.0s' {1..600})"
+    tmux_set "status-format[$row]" "$default_format"
+    row=$((row + 1))
+
+    if $want_cmd; then
+        # Vim-style command line: dim idle info on the left, mode flags on the
+        # right; prompts and messages take this row over while they show, so
+        # the spacer and the bar never move.
+        local left="$command_line_left" right="$command_line_right"
+        [[ -z $left ]] && left='#{b:pane_current_path}#{?#{!=:#{pane_title},#{host}}, · #{pane_title},}'
+        [[ -z $right ]] && right="#{?client_prefix,#[fg=$TC,bold] PREFIX ,}#{?pane_in_mode,#[fg=#b58900,bold] COPY ,}#{?window_zoomed_flag,#[fg=#6c71c4,bold] ZOOM ,}#{?pane_synchronized,#[fg=#d33682,bold] SYNC ,}"
+        tmux_set "status-format[$row]" "#[align=left,fg=$G4,bg=default] $left #[align=right,bg=default]$right"
+        tmux_set message-line "$row"
+        row=$((row + 1))
     else
-        tmux_set "status-format[$spacer_row]" ''
+        # prompts and messages use row 0 (tmux's default): the spacer
+        tmux_unset message-line
     fi
-    tmux_set "status-format[$((spacer_row + 1))]" "$default_format"
-    [[ $rows -eq 2 ]] && tmux_unset 'status-format[2]'
-    tmux_set status "$rows"
-    tmux_unset message-line
+
+    for ((i = row; i < 5; i++)); do
+        tmux_unset "status-format[$i]"
+    done
+    tmux_set status "$row"
 }
 
 # Batch write: accumulate set-option commands, flush at end
@@ -438,7 +453,7 @@ main() {
     build_left_status
     build_right_status
     configure_ui_styles
-    configure_gap
+    configure_status_rows
     tmux_flush
 }
 

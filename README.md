@@ -33,7 +33,8 @@ Additions on top of upstream v2, all opt-in and covered by tests:
 | `@tmux_power_bg` | colour / `default` | `default` = transparent fill while keeping powerline blocks (caps point outward) |
 | `@tmux_power_gap` | `off` (default) / `on` / `line` | spacer row between panes and the bar: blank (`on`) or a hairline (`line`); prompts and messages show in the spacer, never over the bar |
 | `@tmux_power_gap_line_color` | colour | hairline colour (default: gray-teal in text style, `g3` otherwise) |
-| `@tmux_power_message_row` | `off` (default) / `on` | adds a blank top row for prompts and messages, so the spacer and the bar never move (3 rows) |
+| `@tmux_power_command_line` | `off` (default) / `on` | Vim-style bottom row: dim idle info (pane path, pane title) and PREFIX/COPY/ZOOM/SYNC flags; prompts and messages show there, so the spacer and the bar never move |
+| `@tmux_power_command_line_left` / `_right` | format | override the command line's idle content |
 | `@tmux_power_text_<section>_color` | colour | text-style foreground per section: `left_a`..`left_d`, `right_w`..`right_z`, `window`, `current` (`left_a` defaults to the theme colour) |
 
 Reference setup:
@@ -43,7 +44,7 @@ set -g @tmux_power_theme 'moon'
 set -g @tmux_power_style 'text'
 set -g @tmux_power_gap 'line'
 set -g @tmux_power_gap_line_color '#008db1'
-set -g @tmux_power_message_row 'on'
+set -g @tmux_power_command_line 'on'
 set -g @plugin 'ueoo/tmux-power'
 ```
 

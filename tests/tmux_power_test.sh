@@ -673,21 +673,26 @@ test_fork_gap_off_restores_single_row() {
 }
 
 
-test_fork_message_row_makes_three_rows() {
+test_fork_command_line_row() {
     start_tmux
     set_power_option gap 'line'
-    set_power_option message_row 'on'
+    set_power_option command_line 'on'
+    set_power_option theme 'moon'
     load_plugin
 
-    assert_eq '3' "$(run_tmux show -gv status)" "message row adds a third status row" || return 1
-    assert_eq '' "$(run_tmux show -gv 'status-format[0]')" "row 0 is the blank message row" || return 1
-    assert_contains '───' "$(run_tmux show -gv 'status-format[1]')" "row 1 is the hairline" || return 1
-    assert_contains 'window-status-format' "$(run_tmux show -gv 'status-format[2]')" "row 2 is the bar" || return 1
+    assert_eq '3' "$(run_tmux show -gv status)" "hairline, bar and command line" || return 1
+    assert_contains '───' "$(run_tmux show -gv 'status-format[0]')" "row 0 is the hairline" || return 1
+    assert_contains 'window-status-format' "$(run_tmux show -gv 'status-format[1]')" "row 1 is the bar" || return 1
+    local cmd
+    cmd="$(run_tmux show -gv 'status-format[2]')"
+    assert_contains 'pane_current_path' "$cmd" "command line shows the pane path when idle" || return 1
+    assert_contains 'fg=#00abab,bold] PREFIX' "$cmd" "prefix flag uses the theme colour" || return 1
+    assert_eq '2' "$(run_tmux show -gv message-line)" "prompts and messages use the command line row" || return 1
 
-    set_power_option message_row 'off'
+    set_power_option command_line 'off'
     load_plugin
-    assert_eq '2' "$(run_tmux show -gv status)" "turning the message row off returns to two rows" || return 1
-    assert_contains '───' "$(run_tmux show -gv 'status-format[0]')" "row 0 is the hairline again" || return 1
+    assert_eq '2' "$(run_tmux show -gv status)" "command line off returns to two rows" || return 1
+    assert_eq '0' "$(run_tmux show -gv message-line)" "prompts fall back to the spacer row" || return 1
 }
 
 main() {
@@ -713,7 +718,7 @@ main() {
     run_test test_fork_legacy_status_bg_is_cleared
     run_test test_fork_gap_line_keeps_bar_on_row_one
     run_test test_fork_gap_off_restores_single_row
-    run_test test_fork_message_row_makes_three_rows
+    run_test test_fork_command_line_row
 
     if ((TESTS_FAILED > 0)); then
         echo "$TESTS_FAILED of $TESTS_RUN tests failed" >&2
