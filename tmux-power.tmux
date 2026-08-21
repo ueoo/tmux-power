@@ -235,6 +235,26 @@ configure_ui_styles() {
 
 # Spacer row between the panes and the bar (fork feature)
 
+# tmux's compiled default status-format[0], without disturbing the live one:
+# a copy cached on the first load, else the live value while it is still the
+# default, else a throwaway server of the same tmux binary.
+read_default_status_format() {
+    local cached live sock
+    cached="$(tmux show-options -gqv @tmux_power_default_status_format 2>/dev/null)"
+    if [[ -n $cached ]]; then
+        printf '%s' "$cached"
+        return
+    fi
+    live="$(tmux show-options -gv 'status-format[0]' 2>/dev/null)"
+    if [[ $live == *'#{W:'* ]]; then
+        printf '%s' "$live"
+        return
+    fi
+    sock="${TMPDIR:-/tmp}/tmux-power-default.$$"
+    tmux -S "$sock" -f /dev/null start-server \; show-options -gv 'status-format[0]' \; kill-server 2>/dev/null
+    rm -f "$sock"
+}
+
 configure_gap() {
     case $gap in
         on | true | line) ;;
@@ -247,11 +267,12 @@ configure_gap() {
 
     # The bar keeps tmux's own compiled status-format, moved to row 1, so the
     # window list renders exactly as on a single-row status line on every
-    # tmux version. The default is only readable when the whole array is
-    # unset, and that must happen before the read, outside the batch.
-    tmux set-option -gqu status-format
+    # tmux version. The live array is never touched here: unsetting it to
+    # read the default would redraw the plain bar for a moment on every
+    # reload. Re-sourcing only rewrites values that are already in place.
     local default_format
-    default_format="$(tmux show-options -gv 'status-format[0]')"
+    default_format="$(read_default_status_format)"
+    tmux_set @tmux_power_default_status_format "$default_format"
     tmux_set 'status-format[1]' "$default_format"
 
     if [[ $gap == 'line' ]]; then
