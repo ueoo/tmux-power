@@ -43,6 +43,7 @@ set_defaults() {
     bg=''                 # fill: '' = g0, 'default'/'transparent' = terminal background
     gap='off'             # spacer row above the bar: 'off' | 'on' (blank) | 'line' (hairline)
     gap_line_color=''     # '' = auto (gray-teal in text style, g3 otherwise)
+    message_row='off'     # 'on' = a blank row above the spacer for prompts/messages (3 rows)
     # text-style palette: one foreground per section (left_a keeps the theme colour)
     text_left_a_color=''
     text_left_b_color='#b58900'
@@ -273,7 +274,16 @@ configure_gap() {
     local default_format
     default_format="$(read_default_status_format)"
     tmux_set @tmux_power_default_status_format "$default_format"
-    tmux_set 'status-format[1]' "$default_format"
+
+    # Rows, top to bottom: [message row] spacer bar. Messages and the command
+    # prompt use row 0 (tmux's default), so they show in the spacer, or in
+    # the dedicated blank row when message_row is on, and never hide the bar.
+    local rows=2 spacer_row=0
+    if [[ $message_row == 'on' || $message_row == 'true' ]]; then
+        rows=3
+        spacer_row=1
+        tmux_set 'status-format[0]' ''
+    fi
 
     if [[ $gap == 'line' ]]; then
         local color="$gap_line_color"
@@ -281,13 +291,13 @@ configure_gap() {
             [[ $style_mode == 'text' ]] && color='#586e75' || color="$G3"
         fi
         # a long run of box-drawing characters, clipped to the window width
-        tmux_set 'status-format[0]' "#[fg=$color,bg=default]$(printf '─%.0s' {1..600})"
+        tmux_set "status-format[$spacer_row]" "#[fg=$color,bg=default]$(printf '─%.0s' {1..600})"
     else
-        tmux_set 'status-format[0]' ''
+        tmux_set "status-format[$spacer_row]" ''
     fi
-    tmux_set status 2
-    # messages and the command prompt use row 0 (tmux's default): they show
-    # in the gap and never hide the bar
+    tmux_set "status-format[$((spacer_row + 1))]" "$default_format"
+    [[ $rows -eq 2 ]] && tmux_unset 'status-format[2]'
+    tmux_set status "$rows"
     tmux_unset message-line
 }
 
